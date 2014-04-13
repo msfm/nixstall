@@ -33,7 +33,16 @@ if [[ "$#" == "0" ]]; then
     }
 
     function nixstall_list() {
-        ls $__nixstall_dir
+        while read line
+        do 
+            # Show also actual file path of a symbolic link
+            if [ `echo ${line} | egrep "@$"` ]; then
+                echo -n "${line%@} -> "
+                readlink -e -q $__nixstall_dir/${line%@}
+            else
+                echo $line
+            fi
+        done < <(\ls -F -1 $__nixstall_dir)
     }
 
     # reload only nixstall dir exists, otherwise find will fail
