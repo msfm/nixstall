@@ -99,25 +99,59 @@ else
         fi
     fi
 
-    ## TODO validate if the archive has right directory strucutre, i.e. it contains `bin`
+    function extract_archive() {
+        # Check mime-type of the arichive file
+        FILE_MIME_TYPE=`file --mime-type $1`
+
+        if [[ `echo $FILE_MIME_TYPE | egrep "application/zip"` ]] ; then
+            # application/zip : .zip
+
+            # Validate archive file has right directory strucutre, i.e. it contains `bin`
+            if [[ `unzip -l $1 | awk -F'/' '{print $2}' | egrep "bin"` ]] ; then
+                unzip -d $__nixstall_dir -o $1
+            else
+                echo "Invalid archive file: $1 does not have right directory strucutre, i.e. it does not contain \"bin\""
+            fi
+
+        elif [[ `echo $FILE_MIME_TYPE | egrep "application/x-(tar)|(gzip)|(bzip2)|(xz)"` ]] ; then
+            # application/x-tar : .tar
+            # application/x-gzip : .gz
+            # application/x-bzip2 : .bz2
+            # application/x-xz : .xz
+            # recent tar can handle tar.gz, tar.bz2 and tar.xz without the options -z/--gzip, -j/--bzip2 and -J/--xz
+            # Note that just .gz, bz2,.xz archives cannot be extracted by this command
+
+            # Validate archive file has right directory strucutre, i.e. it contains `bin`
+            if [[ `tar tf $1 | awk -F'/' '{print $2}' | egrep "bin"` ]] ; then
+                tar xvf $1 -C $__nixstall_dir
+            else
+                echo "Invalid archive file: $1 does not have right directory strucutre, i.e. it does not contain \"bin\""
+            fi
+
+        else
+            echo "Invalid archive file: $1 is not supported, currently supporting .zip, .tar.gz, tar.bz2 and tar.xz only"
+        fi
+    }
 
     ## we have to download the archive
-    if [ "$1" == "get" ] && [ -n "$2" ];then
-        # FILE=${2##*://*/}
-        ## currently supporting only zip
-        FILE="/tmp/nixstall-archive.zip"
-        curl -L -o "$FILE" "$2"
-        echo "archive file downloaded as : $FILE, copy it if you want to save it"
-
-        # let unzip be interactive when replacing the existing file
-        unzip -d $__nixstall_dir $FILE
-
-        echo "Downloaded archive saved as: $FILE, copy it if you want to save it"
+    if [ "$1" == "get" ] && [ $# -ge 2 ] ; then
+        URL_LIST=${@:2}
+        TMP_DIR=`mktemp -d "/tmp/${0##*/}.tmpdir.XXXXXX"`
+        pushd "$TMP_DIR"
+        for _url in $URL_LIST ; do
+            echo "Start downloading from $_url"
+            curl -L -O "$_url"
+        done
+        for _file in * ; do
+            echo "Start extracting $_file"
+            extract_archive $_file
+        done
+        popd
+        echo "\n All archive files downloaded under $TMP_DIR , copy it if you want to save it"
 
     elif [ -s "$1" ];then
-
-        unzip -d $__nixstall_dir $1
-
+        echo "Start extracting $1"
+        extract_archive $1
     else
         echo "not a valid usage"
         exit 1
