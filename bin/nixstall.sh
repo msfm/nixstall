@@ -7,6 +7,16 @@
 ## the dir where everything will be installed
 __nixstall_dir="${HOME}/.nixstall"
 
+## url from where to get latest nixstall, if required
+#__nixstall_url="https://raw.github.com/kdabir/nixstall/master/bin/nixstall.sh"
+__nixstall_url="http://git.io/nixstall"
+
+# where nixstall itself will be installed
+__nixstall_home="${__nixstall_dir}/nixstall"
+__nixstall_bin="${__nixstall_home}/bin"
+__nixstall_script="${__nixstall_bin}/nixstall"
+__nixstall_version="0.1"
+
 if [[ "$#" == "0" ]]; then
     # when called with no arguments, we are in init/source mode!
     # if this is executed in new shell, it should not have any effect
@@ -36,20 +46,26 @@ if [[ "$#" == "0" ]]; then
         ls $__nixstall_dir
     }
 
+    function nixstall_remove() {
+        if [[ "$#" == "1" ]] && [ -e "$__nixstall_dir/$1" ]; then
+            if [ "`readlink -e $__nixstall_dir/$1`" == "`readlink -e $__nixstall_home`" ]; then
+                echo "Unable to execute \"nixstall_remove $1\" as it's nixstall itself"
+                echo "Remove $__nixstall_dir manually to uninstall nixstall"
+            else
+                echo "removing $__nixstall_dir/$1"
+                rm -I -v -r $__nixstall_dir/$1
+            fi
+        else
+            echo "Specify one of installed apps under $__nixstall_dir:"
+            \ls -1 $__nixstall_dir
+        fi
+    }
+
     # reload only nixstall dir exists, otherwise find will fail
     [ -d "$__nixstall_dir" ] && nixstall_reload
 
 else
     ## this will execute when nixstall is called with some params
-
-    ## url from where to get latest nixstall, if required
-    __nixstall_url="https://raw.github.com/kdabir/nixstall/master/bin/nixstall.sh"
-
-    # where nixstall itself will be installed
-    __nixstall_home="${__nixstall_dir}/nixstall"
-    __nixstall_bin="${__nixstall_home}/bin"
-    __nixstall_script="${__nixstall_bin}/nixstall"
-    __nixstall_version="0.1"
 
     ## if user explicitly aksed or if the nixstall script is not present locally
     if [ "$1" == "self" ] || [ ! -s $__nixstall_script ];then
